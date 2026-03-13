@@ -34,7 +34,7 @@
    - **值**: 任意字符串（用于 API 访问控制）
    - **加密**: ✅ 勾选
 
-![API_KEY 配置示例](screenshorts/API_KEY.jpg)
+
 
 ### 3. 配置 KV 存储（必需）
 
@@ -44,7 +44,7 @@
 3. 命名空间名称：`TTS_HISTORY`
 4. 点击 **添加**
 
-![KV 创建步骤 1](screenshorts/kv_1.png)
+
 
 #### 绑定 KV 到 Pages 项目
 1. 进入你的 Pages 项目设置
@@ -55,11 +55,6 @@
    - **KV 命名空间**: 选择刚创建的 `TTS_HISTORY`
 5. 点击 **保存并部署**
 
-![KV 绑定步骤 2](screenshorts/kv_2.png)
-
-![KV 绑定步骤 3](screenshorts/kv_3_TTS_HISTORY.jpg)
-
-![KV 绑定步骤 4](screenshorts/kv_4.png)
 
 ## 📖 使用方法
 
@@ -140,7 +135,7 @@ curl -X POST "https://your-domain.pages.dev/v1/audio/speech" \
   }' --output streaming.mp3
 ```
 
-## �� 项目文件
+## 项目文件
 
 - **`_worker.js`**: 核心服务文件，包含完整功能
 - **`screenshorts/`**: 配置示例图片
@@ -153,9 +148,6 @@ curl -X POST "https://your-domain.pages.dev/v1/audio/speech" \
 - **首次部署**: 可能需要等待 1-2 分钟初始化
 
 ## 🔗 相关链接
-
-- [GitHub 项目](https://github.com/samni728/edgetts-cloudflare-workers-webui)
-- [v1.2 Release](https://github.com/samni728/edgetts-cloudflare-workers-webui/releases/tag/v1.2)
 - [Edge TTS 音色列表](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts#multilingual-voices)
 
 ## ⚖️ 使用声明
