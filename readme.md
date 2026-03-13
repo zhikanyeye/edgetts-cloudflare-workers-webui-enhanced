@@ -1,4 +1,4 @@
-# CF-TTS Proxy Server (v1.2)
+# CF-TTS Proxy Server Enhanced
 
 一个部署在 Cloudflare Pages 上的高性能文本转语音（TTS）代理服务，将微软 Edge TTS 封装成兼容 OpenAI API 的接口。
 
@@ -23,7 +23,7 @@
 
 1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
 2. 点击 **Workers 和 Pages** → **创建应用程序** → **Pages** → **上传资产**
-3. 上传 [v1.2 Release](https://github.com/samni728/edgetts-cloudflare-workers-webui/releases/tag/v1.2) 在添加变量和 kv 后务必在重新部署一次才能生效！
+3. 在添加变量和 kv 后务必在重新部署一次才能生效！
 
 ### 2. 配置环境变量
 
