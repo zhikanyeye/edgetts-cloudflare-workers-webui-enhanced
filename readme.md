@@ -7,17 +7,18 @@
 ## ✨ 主要特性
 
 - **🚀 OpenAI 兼容**: 完全模拟 OpenAI 的 `/v1/audio/speech` 接口
-- **🗣️ 高质量音色**: 利用微软 Edge TTS 的自然神经网络语音
+- **🗣️ 高质量音色**: 利用微软 Edge TTS 的自然神经网络语音（支持中/英/日/韩等 **20+ 多语言音色**）
+- **🔊 音色试听功能**: 内置 WebUI 支持一键试听各语言专属预览音频
+- **📝 SSML 高级控制**: 独家支持直通输入 SSML 进行停顿、强调等精细化控制
+- **🎵 多格式输出**: 支持指定 MP3、OGG(Opus)、WAV 等多种音频输出格式
 - **⚡ 流式播放**: 支持流式和标准两种响应模式，降低长文本延迟
 - **🧠 智能文本清理**: 自动处理 Markdown、Emoji、URL、引用标记等
-- **🗄️ 智能历史记录**: 支持两种保存模式
-  - **音频+文本保存**: 完整音频文件存储，速度快，适合有声书制作
-  - **文本+流式播放**: 仅保存文本，实时生成音频，不占存储空间
+- **🗄️ 智能历史管理**: 支持按标签（实时/预存/加密）过滤记录，支持一键清空
 - **📖 有声书功能**: 支持 Markdown 格式分享，自动优化 TTS 文本转换
 - **🔗 跨设备分享**: 带密码保护的分享链接，可作为临时信息传递工具
 - **🔐 安全访问**: API 密钥验证，确保服务安全
-- **🆔 智能用户ID**: 基于部署域名自动生成唯一用户ID，避免多部署冲突
-- **💻 内置 WebUI**: 功能完整的测试界面，无需编程即可使用
+- **📱 移动端适配**: WebUI 针对手机屏幕进行了专门的优化排列
+- **💻 内置 WebUI**: 功能完整的响应式测试界面，无需编程即可使用
 
 ## 🚀 快速部署
 
@@ -83,11 +84,13 @@ curl -X POST "https://your-domain.pages.dev/v1/audio/speech" \
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `model` | string | `"tts-1"` | 模型 ID |
-| `input` | string | **必需** | 要转换的文本 |
-| `voice` | string | `"alloy"` | 音色选择 |
+| `input` | string | **必需** | 要转换的文本 (当 `ssml` 非空时，此字段失效) |
+| `voice` | string | `"alloy"` | 音色选择（支持 OpenAI 映射名称或 Azure 原始音色名） |
 | `speed` | number | `1.0` | 语速 (0.25-2.0) |
 | `pitch` | number | `1.0` | 音调 (0.5-1.5) |
+| `response_format`| string | `"mp3"` | 返回格式，支持 `mp3`、`ogg`、`wav` |
 | `stream` | boolean | `false` | 是否流式响应 |
+| `ssml` | string | `""` | 可选直接传入 SSML XML 数据进行高级渲染 |
 | `cleaning_options` | object | `{...}` | 文本清理选项 |
 
 ### 智能用户ID机制
@@ -98,13 +101,15 @@ curl -X POST "https://your-domain.pages.dev/v1/audio/speech" \
 
 ### 音色选择
 
-#### OpenAI 兼容音色
-- `shimmer` - 温柔女声
-- `alloy` - 专业男声  
-- `fable` - 激情男声
-- `onyx` - 活泼女声
-- `nova` - 阳光男声
-- `echo` - 东北女声
+支持两大类音色：
+1. **Azure 原生名**：如 `zh-CN-XiaoxiaoNeural`, `en-US-AriaNeural`, `ja-JP-NanamiNeural` 等
+2. **OpenAI 兼容名**（自动映射为中文音色）：
+   - `shimmer` - 温柔女声
+   - `alloy` - 专业男声  
+   - `fable` - 激情男声
+   - `onyx` - 活泼女声
+   - `nova` - 阳光男声
+   - `echo` - 东北女声
 
 #### 高级参数
 - `style` - 语音风格（general, chat, news, etc.）
@@ -145,7 +150,14 @@ curl -X POST "https://your-domain.pages.dev/v1/audio/speech" \
 ## 📋 更新日志
 
 ### v1.0
-- 🔒 修复 `/api/history` 端点 API Key 校验漏洞（仅验证格式而非实际值）
+- 🚀 **全面功能升级**：
+  - 新增多语言音色库及 WebUI 分组选择器
+  - 新增 `试听` 按钮一键获取音色 Demo
+  - 新增对返回格式 `mp3` / `ogg` / `wav` 的支持映射
+  - 添加前台 SSML 高级编辑器（支持插入停顿/强调）
+  - 历史记录面板添加标签过滤与整体清空能力
+  - 全面加强移动端手机屏幕布局与控件间距优化
+- 🔒 **安全加固**：修复 `/api/history` 等历史记录端点调用时缺少 Bearer Auth 头的验证漏洞与错误抛出
 
 ## ⚠️ 限制说明
 
