@@ -19,6 +19,58 @@ const OPENAI_VOICE_MAP = {
   nova: "zh-CN-YunxiNeural",
   echo: "zh-CN-liaoning-XiaobeiNeural",
 };
+
+// 多语言音色目录（供 WebUI 分组下拉框使用）
+const VOICE_CATALOG = {
+  "🇨🇳 中文": [
+    { name: "zh-CN-XiaoxiaoNeural",        label: "晓晓 - 温柔女声",   preview: "你好，我是晓晓，很高兴认识你。" },
+    { name: "zh-CN-XiaoyiNeural",          label: "晓伊 - 活泼女声",   preview: "你好，我是晓伊，很高兴认识你。" },
+    { name: "zh-CN-YunyangNeural",         label: "云扬 - 专业男声",   preview: "你好，我是云扬，很高兴认识你。" },
+    { name: "zh-CN-YunxiNeural",           label: "云希 - 阳光男声",   preview: "你好，我是云希，很高兴认识你。" },
+    { name: "zh-CN-YunjianNeural",         label: "云健 - 激情男声",   preview: "你好，我是云健，很高兴认识你。" },
+    { name: "zh-CN-XiaochenNeural",        label: "晓辰 - 知性女声",   preview: "你好，我是晓辰，很高兴认识你。" },
+    { name: "zh-CN-XiaohanNeural",         label: "晓涵 - 甜美女声",   preview: "你好，我是晓涵，很高兴认识你。" },
+    { name: "zh-CN-XiaomoNeural",          label: "晓墨 - 优雅女声",   preview: "你好，我是晓墨，很高兴认识你。" },
+    { name: "zh-CN-XiaoruiNeural",         label: "晓睿 - 睿智女声",   preview: "你好，我是晓睿，很高兴认识你。" },
+    { name: "zh-CN-XiaoxuanNeural",        label: "晓萱 - 文艺女声",   preview: "你好，我是晓萱，很高兴认识你。" },
+    { name: "zh-CN-liaoning-XiaobeiNeural",label: "晓北 - 东北女声",   preview: "你好，我是晓北，很高兴认识你。" },
+    { name: "zh-TW-HsiaoChenNeural",       label: "曉臻 - 台湾女声",   preview: "你好，我是曉臻，很高興認識你。" },
+    { name: "zh-TW-YunJheNeural",          label: "雲哲 - 台湾男声",   preview: "你好，我是雲哲，很高興認識你。" },
+    { name: "zh-HK-HiuGaaiNeural",         label: "曉佳 - 粤语女声",   preview: "你好，我係曉佳，好高興認識你。" },
+  ],
+  "🇺🇸 English": [
+    { name: "en-US-JennyNeural",   label: "Jenny - Friendly Female", preview: "Hello, I'm Jenny. Nice to meet you." },
+    { name: "en-US-GuyNeural",     label: "Guy - Professional Male", preview: "Hello, I'm Guy. Nice to meet you." },
+    { name: "en-US-AriaNeural",    label: "Aria - Warm Female",      preview: "Hello, I'm Aria. Nice to meet you." },
+    { name: "en-US-DavisNeural",   label: "Davis - Casual Male",     preview: "Hello, I'm Davis. Nice to meet you." },
+    { name: "en-GB-SoniaNeural",   label: "Sonia - UK Female",       preview: "Hello, I'm Sonia. Nice to meet you." },
+    { name: "en-GB-RyanNeural",    label: "Ryan - UK Male",          preview: "Hello, I'm Ryan. Nice to meet you." },
+    { name: "en-AU-NatashaNeural", label: "Natasha - AU Female",     preview: "Hello, I'm Natasha. Nice to meet you." },
+  ],
+  "🇯🇵 日本語": [
+    { name: "ja-JP-NanamiNeural", label: "七海 - 女声",  preview: "こんにちは、七海です。よろしくお願いします。" },
+    { name: "ja-JP-KeitaNeural",  label: "圭太 - 男声",  preview: "こんにちは、圭太です。よろしくお願いします。" },
+  ],
+  "🇰🇷 한국어": [
+    { name: "ko-KR-SunHiNeural",  label: "선히 - 여성", preview: "안녕하세요, 선히입니다. 만나서 반갑습니다." },
+    { name: "ko-KR-InJoonNeural", label: "인준 - 남성", preview: "안녕하세요, 인준입니다. 만나서 반갑습니다." },
+  ],
+  "🇫🇷 Français": [
+    { name: "fr-FR-DeniseNeural", label: "Denise - Femme", preview: "Bonjour, je suis Denise. Ravie de vous rencontrer." },
+    { name: "fr-FR-HenriNeural",  label: "Henri - Homme",  preview: "Bonjour, je suis Henri. Ravi de vous rencontrer." },
+  ],
+  "🇩🇪 Deutsch": [
+    { name: "de-DE-KatjaNeural",   label: "Katja - Weiblich",  preview: "Hallo, ich bin Katja. Schön, Sie kennenzulernen." },
+    { name: "de-DE-ConradNeural",  label: "Conrad - Männlich", preview: "Hallo, ich bin Conrad. Schön, Sie kennenzulernen." },
+  ],
+};
+
+// 音频输出格式映射
+const OUTPUT_FORMAT_MAP = {
+  mp3: { format: "audio-24khz-48kbitrate-mono-mp3", mime: "audio/mpeg",     ext: "mp3" },
+  ogg: { format: "ogg-24khz-16bit-mono-opus",       mime: "audio/ogg",      ext: "ogg" },
+  wav: { format: "riff-24khz-16bit-mono-pcm",       mime: "audio/wav",      ext: "wav" },
+};
 let tokenInfo = { endpoint: null, token: null, expiredAt: null };
 const TOKEN_REFRESH_BEFORE_EXPIRY = 5 * 60;
 
@@ -193,6 +245,8 @@ async function handleRequest(request) {
       return await handleSetPasswordRequest(request);
     if (url.pathname === "/api/delete")
       return await handleDeleteRequest(request);
+    if (url.pathname === "/api/clear-history")
+      return await handleHistoryClearRequest(request);
     if (url.pathname.startsWith("/api/audio/"))
       return await handleAudioRequest(request);
   } catch (err) {
@@ -526,6 +580,61 @@ async function handleDeleteRequest(request) {
   }
 }
 
+async function handleHistoryClearRequest(request) {
+  if (request.method !== "POST")
+    return errorResponse("Method Not Allowed", 405, "method_not_allowed");
+
+  if (!globalThis.TTS_HISTORY) {
+    return errorResponse("KV storage not configured", 500, "storage_error");
+  }
+
+  // Verify API Key
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return errorResponse("API key required", 401, "unauthorized");
+  }
+  
+  if (globalThis.API_KEY) {
+    const providedKey = authHeader.slice(7);
+    if (providedKey !== globalThis.API_KEY) {
+      return errorResponse("Invalid API key", 403, "invalid_api_key");
+    }
+  }
+
+  try {
+    const historyData = await globalThis.TTS_HISTORY.get("history_index");
+    if (!historyData) {
+      return new Response(JSON.stringify({ success: true, count: 0 }), {
+        headers: { "Content-Type": "application/json", ...makeCORSHeaders() },
+      });
+    }
+
+    const history = JSON.parse(historyData);
+    let deletedCount = 0;
+
+    // Delete all linked audio files from KV
+    for (const item of history) {
+      if (item.type !== 'realtime' && item.fileKey) {
+        await globalThis.TTS_HISTORY.delete(item.fileKey);
+      }
+      deletedCount++;
+    }
+
+    // Clear the index
+    await globalThis.TTS_HISTORY.put("history_index", JSON.stringify([]));
+
+    return new Response(JSON.stringify({ success: true, count: deletedCount }), {
+      headers: { "Content-Type": "application/json", ...makeCORSHeaders() },
+    });
+  } catch (error) {
+    return errorResponse(
+      `Failed to clear history: ${error.message}`,
+      500,
+      "delete_error"
+    );
+  }
+}
+
 // Handle play page (page sharing)
 async function handlePlayPageRequest(request) {
   const url = new URL(request.url);
@@ -763,21 +872,49 @@ async function handleSpeechRequest(request) {
     styleDegree = 1.0,
     stream = false,
     cleaning_options = {},
+    response_format = "mp3",
+    ssml = "",
   } = requestBody;
 
   // OpenAI 兼容性处理
   let finalVoice;
   if (model === "tts-1" || model === "tts-1-hd") {
-    // 标准 OpenAI 格式：使用 voice 参数
     finalVoice = OPENAI_VOICE_MAP[voice] || voice || "zh-CN-XiaoxiaoNeural";
   } else if (model.startsWith("tts-1-")) {
-    // 兼容旧格式：从 model 中提取音色
     finalVoice =
       OPENAI_VOICE_MAP[model.replace("tts-1-", "")] || "zh-CN-XiaoxiaoNeural";
   } else {
-    // 直接使用指定的音色
     finalVoice = voice || model || "zh-CN-XiaoxiaoNeural";
   }
+
+  const formatInfo = OUTPUT_FORMAT_MAP[response_format] || OUTPUT_FORMAT_MAP.mp3;
+  const outputFormat = formatInfo.format;
+  const contentType = formatInfo.mime;
+
+  const rate = ((speed - 1) * 100).toFixed(0);
+  const numPitch = ((pitch - 1) * 100).toFixed(0);
+
+  // SSML 直通模式：跳过文本清理和分片，直接将 SSML 发送到 Edge TTS
+  if (ssml && ssml.trim().startsWith("<speak")) {
+    const response = await fetch(`https://${(await getEndpoint(request)).r}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: "POST",
+      headers: {
+        Authorization: (await getEndpoint(request)).t,
+        "Content-Type": "application/ssml+xml",
+        "User-Agent": "okhttp/4.5.0",
+        "X-Microsoft-OutputFormat": outputFormat,
+      },
+      body: ssml,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return errorResponse(`Edge TTS SSML error: ${response.status} ${errorText}`, 502, "tts_error");
+    }
+    return new Response(response.body, {
+      headers: { "Content-Type": contentType, ...makeCORSHeaders() },
+    });
+  }
+
   const finalCleaningOptions = {
     remove_code_blocks: true,
     remove_markdown: true,
@@ -789,9 +926,6 @@ async function handleSpeechRequest(request) {
     ...cleaning_options,
   };
   const cleanedInput = cleanText(input, finalCleaningOptions);
-  const rate = ((speed - 1) * 100).toFixed(0);
-  const numPitch = ((pitch - 1) * 100).toFixed(0);
-  const outputFormat = "audio-24khz-48kbitrate-mono-mp3";
 
   if (stream) {
     return await getVoiceStream(
@@ -2020,9 +2154,30 @@ function getHistoryPageHTML() {
       <h1>📚 TTS 历史记录</h1>
       <a href="/" class="back-btn">← 返回主页</a>
     </div>
+    
+    <div class="filter-bar">
+      <div class="tag-filters" id="tag-filters">
+        <button class="tag-btn active" data-tag="all">全部</button>
+        <button class="tag-btn" data-tag="realtime">🌐 实时</button>
+        <button class="tag-btn" data-tag="stored">💾 预存</button>
+        <button class="tag-btn" data-tag="password">🔒 加密</button>
+      </div>
+      <div>
+        <button class="btn btn-delete" onclick="clearAllHistory()" style="padding: 0.4rem 0.8rem;">🗑️ 清空所有</button>
+      </div>
+    </div>
+    
     <div id="loading" class="loading">正在加载历史记录...</div>
     <div id="history-list"></div>
   </div>
+
+  <style>
+    .filter-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .tag-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .tag-btn { background: #e9ecef; border: 1px solid #ced4da; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; cursor: pointer; color: #495057; transition: all 0.2s; }
+    .tag-btn:hover { background: #dde2e6; }
+    .tag-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+  </style>
 
   <script>
     async function loadHistory() {
@@ -2038,58 +2193,89 @@ function getHistoryPageHTML() {
             'Authorization': \`Bearer \${apiKey}\`
           }
         });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(response.status === 401 || response.status === 403 ? 'API Key 错误或验证失败' : \`加载失败: \${response.status}\`);
+        }
+        
         const data = await response.json();
         
         document.getElementById('loading').style.display = 'none';
         
-        if (data.history.length === 0) {
-          document.getElementById('history-list').innerHTML = '<div class="empty">暂无历史记录</div>';
-          return;
-        }
-        
-        const historyHtml = data.history.map(item => \`
-          <div class="history-item">
-            <div class="item-header">
-              <div style="flex-grow: 1;">
-                <div class="item-summary">\${item.summary}</div>
-                <div class="item-meta">
-                  \${formatDate(item.timestamp)} • \${item.voice} • \${formatFileSize(item.size)}
-                  \${item.hasPassword ? ' • 🔒 已设密码' : ''}
-                  \${item.type === 'realtime' ? ' • 🌐 实时播放' : ' • 💾 预存储'}
-                </div>
-              </div>
-              <div class="item-actions">
-                <button class="btn btn-play" onclick="playAudio('\${item.id}', '\${item.type || 'stored'}')" title="播放">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </button>
-                <button class="btn btn-share" onclick="shareItem('\${item.id}')" title="分享">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
-                  </svg>
-                </button>
-                <button class="btn btn-password" onclick="setPassword('\${item.id}')" title="设置密码">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18,8h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6c-1.1,0-2,0.9-2,2v10c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V10C20,8.9,19.1,8,18,8z M12,17c-1.1,0-2-0.9-2-2s0.9-2,2-2s2,0.9,2,2S13.1,17,12,17z M15.1,8H8.9V6c0-1.71,1.39-3.1,3.1-3.1s3.1,1.39,3.1,3.1V8z"/>
-                  </svg>
-                </button>
-                <button class="btn btn-delete" onclick="deleteItem('\${item.id}')" title="删除">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <audio id="audio-\${item.id}" controls style="display: none;"></audio>
-          </div>
-        \`).join('');
-        
-        document.getElementById('history-list').innerHTML = historyHtml;
+        // 保存全局数据以便于过滤
+        window.allHistoryData = data.history;
+        renderHistory(data.history);
       } catch (error) {
         document.getElementById('loading').innerHTML = '<div class="empty">加载失败: ' + error.message + '</div>';
       }
     }
+    
+    function renderHistory(historyItems) {
+      if (!historyItems || historyItems.length === 0) {
+        document.getElementById('history-list').innerHTML = '<div class="empty">暂无相关历史记录</div>';
+        return;
+      }
+      
+      const historyHtml = historyItems.map(item => \`
+        <div class="history-item" data-type="\${item.type || 'stored'}" data-has-password="\${item.hasPassword || false}">
+          <div class="item-header">
+            <div style="flex-grow: 1;">
+              <div class="item-summary">\${item.summary}</div>
+              <div class="item-meta">
+                \${formatDate(item.timestamp)} • \${item.voice} • \${formatFileSize(item.size)}
+                \${item.hasPassword ? ' • 🔒 已设密码' : ''}
+                \${item.type === 'realtime' ? ' • 🌐 实时播放' : ' • 💾 预存储'}
+              </div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-play" onclick="playAudio('\${item.id}', '\${item.type || 'stored'}')" title="播放">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </button>
+              <button class="btn btn-share" onclick="shareItem('\${item.id}')" title="分享">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+                </svg>
+              </button>
+              <button class="btn btn-password" onclick="setPassword('\${item.id}')" title="设置密码">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18,8h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6c-1.1,0-2,0.9-2,2v10c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V10C20,8.9,19.1,8,18,8z M12,17c-1.1,0-2-0.9-2-2s0.9-2,2-2s2,0.9,2,2S13.1,17,12,17z M15.1,8H8.9V6c0-1.71,1.39-3.1,3.1-3.1s3.1,1.39,3.1,3.1V8z"/>
+                </svg>
+              </button>
+              <button class="btn btn-delete" onclick="deleteItem('\${item.id}')" title="删除">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <audio id="audio-\${item.id}" controls style="display: none;"></audio>
+        </div>
+      \`).join('');
+      
+      document.getElementById('history-list').innerHTML = historyHtml;
+    }
+    
+    // 标签筛选逻辑
+    document.getElementById('tag-filters').addEventListener('click', (e) => {
+      if (e.target.classList.contains('tag-btn')) {
+        document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        const filterTag = e.target.dataset.tag;
+        const allData = window.allHistoryData || [];
+        
+        if (filterTag === 'all') {
+          renderHistory(allData);
+        } else if (filterTag === 'password') {
+          renderHistory(allData.filter(item => item.hasPassword));
+        } else {
+          renderHistory(allData.filter(item => (item.type || 'stored') === filterTag));
+        }
+      }
+    });
     
     function formatDate(timestamp) {
       return new Date(timestamp).toLocaleString('zh-CN');
@@ -2241,6 +2427,38 @@ function getHistoryPageHTML() {
       }
     }
     
+    async function clearAllHistory() {
+      if (!confirm('确定要清空所有历史记录吗？此操作【无法恢复】！')) {
+        return;
+      }
+      
+      try {
+        const apiKey = getCookie('apiKey');
+        if (!apiKey) {
+          alert('请先设置 API Key');
+          return;
+        }
+        
+        const response = await fetch('/api/clear-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': \`Bearer \${apiKey}\`
+          }
+        });
+        
+        if (response.ok) {
+          alert('清空成功！');
+          loadHistory(); // 刷新列表
+        } else {
+          const error = await response.json();
+          alert('清空失败: ' + error.error.message);
+        }
+      } catch (error) {
+        alert('清空失败: ' + error.message);
+      }
+    }
+    
     function getCookie(name) {
       const value = \`; \${document.cookie}\`;
       const parts = value.split(\`; \${name}=\`);
@@ -2295,25 +2513,25 @@ function getWebUIHTML() {
       
       /* 移动端优化 */
       @media (max-width: 768px) {
-        .container { padding: 1rem; margin: 0; border-radius: 0; box-shadow: none; }
-        body { padding: 0; }
+        .container { padding: 1.5rem 1rem; margin: 0; border-radius: 8px; box-shadow: none; }
+        body { padding: 0.5rem; }
         .action-section { margin-top: 1rem; }
-        .all-buttons { grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
-        .primary-btn { padding: 0.7rem 0.3rem; font-size: 0.8rem; }
-        .secondary-btn { padding: 0.7rem 0.3rem; font-size: 0.8rem; }
-        .usage-tips { font-size: 0.8rem; padding: 0.6rem; margin-top: 0.5rem; }
-        .usage-tips ul { margin: 0.3rem 0 0 1rem; }
-        .usage-tips li { margin-bottom: 0.2rem; }
+        .all-buttons { grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        #btn-generate { grid-column: span 2; padding: 0.8rem; font-size: 1rem; }
+        .primary-btn, .secondary-btn { padding: 0.7rem; font-size: 0.9rem; }
+        .usage-tips { font-size: 0.85rem; padding: 0.8rem; margin-top: 1rem; border-radius: 6px; }
+        .usage-tips ul { margin: 0.5rem 0 0 1.2rem; }
+        .usage-tips li { margin-bottom: 0.4rem; }
         
         /* 使用提示布局修复 */
         .usage-tips > div:first-child { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; white-space: nowrap; }
-        #dismiss-tips { flex-shrink: 0; margin-left: 0.5rem; }
+        #dismiss-tips { flex-shrink: 0; margin-left: 0.5rem; padding: 5px; }
         
         /* 表单组件紧凑化 */
-        .form-group { margin-bottom: 1rem; }
-        details { padding: 0.8rem; margin-bottom: 1rem; }
-        input, select, textarea { padding: 0.6rem 0.8rem; }
-        h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        details { padding: 1rem; margin-bottom: 1.2rem; }
+        input[type="text"], input[type="password"], select, textarea { padding: 0.7rem 0.8rem; font-size: 16px; }
+        h1 { margin-bottom: 1.5rem; font-size: 1.4rem; line-height: 1.3; }
       }
       #status { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: 500; display: none; }
       .status-info { background-color: #e7f3ff; color: #004085; }
@@ -2351,17 +2569,14 @@ function getWebUIHTML() {
         </div>
       </div>
       <div class="grid-layout">
-        <div class="form-group">
-          <label for="voice">选择音色 (Voice)</label>
-          <select id="voice">
-            <option value="shimmer">shimmer (温柔女声)</option>
-            <option value="alloy" selected>alloy (专业男声)</option>
-            <option value="fable">fable (激情男声)</option>
-            <option value="onyx">onyx (活泼女声)</option>
-            <option value="nova">nova (阳光男声)</option>
-            <option value="echo">echo (东北女声)</option>
-            <option value="custom">🎛️ 自定义音色配置</option>
-          </select>
+        <div class="form-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <div style="flex-grow: 1;">
+            <label for="voice">选择音色 (Voice)</label>
+            <select id="voice"></select>
+          </div>
+          <div style="flex-shrink: 0; align-self: flex-end; margin-bottom: 2px;">
+            <button id="btn-preview-voice" class="secondary-btn" style="padding: 0.6rem 1rem;" title="试听当前音色">🔊 试听</button>
+          </div>
         </div>
         
         <div id="custom-voice-config" style="display: none; grid-column: 1 / -1;">
@@ -2369,7 +2584,7 @@ function getWebUIHTML() {
             <label for="customVoiceName">自定义音色名称 (ShortName)</label>
             <input type="text" id="customVoiceName" placeholder="例如: zh-CN-XiaoxiaoNeural" />
             <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 0.3rem;">
-              完整的音色标识符，如 zh-CN-XiaoxiaoNeural 
+              完整的音色标识符 
               <a href="https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts#multilingual-voices" target="_blank" style="color: var(--primary-color); text-decoration: none; margin-left: 0.5rem;">
                 📋 查看完整音色列表
               </a>
@@ -2416,9 +2631,16 @@ function getWebUIHTML() {
                 <input type="range" id="styleDegree" min="0.01" max="2" step="0.01" value="1" />
                 <span id="styleDegreeValue">1.00</span>
               </div>
-              <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 0.3rem;">控制语音风格的强度，范围 0.01-2.00</small>
             </div>
           </div>
+        </div>
+        <div class="form-group">
+          <label>音频格式</label>
+          <select id="audioFormat">
+            <option value="mp3" selected>MP3 (最佳兼容性)</option>
+            <option value="ogg">OGG OPUS (高音质/低体积)</option>
+            <option value="wav">WAV (无损 PCM)</option>
+          </select>
         </div>
         <div class="form-group">
           <label>语速</label>
@@ -2447,6 +2669,23 @@ function getWebUIHTML() {
         <div class="form-group" style="margin-top: 1rem; margin-bottom: 0">
           <label for="customKeywords">自定义移除关键词 (逗号分隔)</label>
           <input type="text" id="customKeywords" placeholder="例如: ABC,XYZ" />
+        </div>
+      </details>
+      <details id="ssml-details">
+        <summary>SSML 高级编辑器 (可选)</summary>
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="ssmlEditor">输入完整 SSML XML (填写后将忽略上方文本和清理选项)</label>
+          <textarea id="ssmlEditor" rows="6" placeholder="<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>
+  <voice name='zh-CN-XiaoxiaoNeural'>
+    测试<break time='500ms'/>停顿和<emphasis level='strong'>强调</emphasis>
+  </voice>
+</speak>"></textarea>
+          <div class="textarea-footer" style="justify-content: flex-start; gap: 10px; margin-top: 8px;">
+            <button class="secondary-btn" id="btn-insert-break" style="padding: 4px 8px; font-size: 0.8rem; width: auto;">+ 停顿1秒</button>
+            <button class="secondary-btn" id="btn-insert-emphasis" style="padding: 4px 8px; font-size: 0.8rem; width: auto;">+ 强调</button>
+            <button class="secondary-btn" id="btn-ssml-template" style="padding: 4px 8px; font-size: 0.8rem; width: auto;">+ 基础模板</button>
+            <small style="margin-left: auto; color: #666;">高级功能，需了解 SSML 语法</small>
+          </div>
         </div>
       </details>
       <div class="action-section">
@@ -2552,7 +2791,34 @@ function getWebUIHTML() {
           usageTips: document.getElementById("usage-tips"),
           dismissTips: document.getElementById("dismiss-tips"),
           confirmTips: document.getElementById("confirm-tips"),
+          btnPreviewVoice: document.getElementById("btn-preview-voice"),
+          audioFormat: document.getElementById("audioFormat"),
+          ssmlEditor: document.getElementById("ssmlEditor"),
+          btnInsertBreak: document.getElementById("btn-insert-break"),
+          btnInsertEmphasis: document.getElementById("btn-insert-emphasis"),
+          btnSsmlTemplate: document.getElementById("btn-ssml-template"),
         };
+
+        // 将服务器端的 VOICE_CATALOG 传递给前端
+        const VOICE_CATALOG = ${JSON.stringify(VOICE_CATALOG)};
+        
+        // 渲染音色选择器
+        const renderVoiceSelector = () => {
+          let html = '';
+          for (const [groupStr, voices] of Object.entries(VOICE_CATALOG)) {
+            html += \`<optgroup label="\${groupStr}">\`;
+            voices.forEach(v => {
+              const flag = groupStr.split(' ')[0]; // 提取旗帜 emoji
+              html += \`<option value="\${v.name}" data-preview="\${v.preview || ''}">\${flag} \${v.label} (\${v.name})</option>\`;
+            });
+            html += \`</optgroup>\`;
+          }
+          html += \`<optgroup label="⚙️ 其他"><option value="custom">🎛️ 自定义音色配置</option></optgroup>\`;
+          elements.voice.innerHTML = html;
+          // 默认选中第一个中文女声
+          elements.voice.value = 'zh-CN-XiaoxiaoNeural';
+        };
+        renderVoiceSelector();
 
         const setCookie = (name, value, days = 30) => {
           const d = new Date();
@@ -2580,6 +2846,63 @@ function getWebUIHTML() {
           elements.usageTips.style.display = "none";
           setCookie("usageTipsHidden", "true", 365); // 记住一年
         };
+
+        // SSML 快捷按钮处理
+        elements.btnInsertBreak.addEventListener("click", () => {
+          const editor = elements.ssmlEditor;
+          const cursorPos = editor.selectionStart;
+          const textBefore = editor.value.substring(0, cursorPos);
+          const textAfter = editor.value.substring(cursorPos, editor.value.length);
+          editor.value = textBefore + "<break time='1s'/>" + textAfter;
+          editor.focus();
+        });
+        
+        elements.btnInsertEmphasis.addEventListener("click", () => {
+          const editor = elements.ssmlEditor;
+          const cursorPos = editor.selectionStart;
+          const cursorEnd = editor.selectionEnd;
+          const textBefore = editor.value.substring(0, cursorPos);
+          const selectedText = editor.value.substring(cursorPos, cursorEnd);
+          const textAfter = editor.value.substring(cursorEnd, editor.value.length);
+          editor.value = textBefore + "<emphasis level='strong'>" + (selectedText || '强调的文本') + "</emphasis>" + textAfter;
+          editor.focus();
+        });
+
+        elements.btnSsmlTemplate.addEventListener("click", () => {
+          const voiceConfig = getVoiceConfig();
+          elements.ssmlEditor.value = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>\\n" +
+"  <voice name='" + voiceConfig.voice + "'>\\n" +
+"    <mstts:express-as style='" + (voiceConfig.style || "general") + "' styledegree='" + (voiceConfig.styleDegree || 1) + "'>\\n" +
+"      在此输入要朗读的文本。\\n" +
+"    </mstts:express-as>\\n" +
+"  </voice>\\n" +
+"</speak>";
+        });
+
+        // 试听音色
+        elements.btnPreviewVoice.addEventListener("click", () => {
+          const isCustom = elements.voice.value === "custom";
+          if (isCustom && !elements.customVoiceName.value.trim()) {
+            updateStatus("请先输入自定义音色名称", "error");
+            return;
+          }
+          
+          let previewText = "这是一个语音试听内容，测试效果。";
+          if (!isCustom) {
+            const selectedOption = elements.voice.options[elements.voice.selectedIndex];
+            previewText = selectedOption.dataset.preview || previewText;
+          }
+
+          const originalText = elements.inputText.value;
+          const originalSsml = elements.ssmlEditor.value;
+          elements.inputText.value = previewText;
+          elements.ssmlEditor.value = ""; // 临时清空以确保不用 SSML
+          
+          generateSpeech(false, 0).finally(() => {
+            elements.inputText.value = originalText;
+            elements.ssmlEditor.value = originalSsml;
+          });
+        });
 
         const updateStatus = (message, type, persistent = false) => {
           elements.status.textContent = message;
@@ -2708,6 +3031,8 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
               role: voiceConfig.role,
               styleDegree: voiceConfig.styleDegree,
               stream: isStream,
+              response_format: elements.audioFormat.value,
+              ssml: elements.ssmlEditor.value.trim(),
               cleaning_options: {
                 remove_markdown: elements.removeMarkdown.checked, remove_emoji: elements.removeEmoji.checked,
                 remove_urls: elements.removeUrls.checked, remove_line_breaks: elements.removeLineBreaks.checked,
