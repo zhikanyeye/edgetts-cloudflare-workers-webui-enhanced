@@ -3214,7 +3214,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': 'Bearer ' + apiKey
               },
               body: JSON.stringify(realtimeData)
             });
@@ -3279,12 +3279,12 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             formData.append('speed', requestBody.speed.toString());
             formData.append('pitch', requestBody.pitch.toString());
             formData.append('cleaningOptions', JSON.stringify(requestBody.cleaning_options));
-            formData.append('audioFile', audioBlob, `audio.${requestBody.response_format || 'mp3'}`);
+            formData.append('audioFile', audioBlob, 'audio.' + (requestBody.response_format || 'mp3'));
             
             const response = await fetch('/api/save', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': 'Bearer ' + apiKey
               },
               body: formData  // No Content-Type header needed for FormData
             });
