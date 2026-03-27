@@ -1,6 +1,8 @@
-# EdgeTTS WebUI Enhanced
+# 字音驿站
 
 > **v1.0**
+>
+> 默认 WebUI / 网站名称：`字音驿站`
 
 一个部署在 Cloudflare Pages 上的高性能文本转语音（TTS）代理服务，将微软 Edge TTS 封装成兼容 OpenAI API 的接口。
 

@@ -11,6 +11,7 @@
 
 // Environment variables will be accessed directly from globalThis when needed
 const MAX_STORAGE_SIZE = 1024 * 1024 * 1024; // 1GB limit
+const SITE_NAME = "字音驿站";
 const OPENAI_VOICE_MAP = {
   shimmer: "zh-CN-XiaoxiaoNeural",
   alloy: "zh-CN-YunyangNeural",
@@ -260,6 +261,22 @@ async function handleRequest(request) {
 // API Route Handlers
 // =================================================================================
 
+function validateManagementApiKey(request, message = "API key required") {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return errorResponse(message, 401, "unauthorized");
+  }
+
+  if (globalThis.API_KEY) {
+    const providedKey = authHeader.slice(7);
+    if (providedKey !== globalThis.API_KEY) {
+      return errorResponse("Invalid API key", 403, "invalid_api_key");
+    }
+  }
+
+  return null;
+}
+
 // Handle save realtime play to history
 async function handleSaveRealtimeRequest(request) {
   if (request.method !== "POST") {
@@ -268,6 +285,11 @@ async function handleSaveRealtimeRequest(request) {
 
   if (!globalThis.TTS_HISTORY) {
     return errorResponse("KV storage not configured", 500, "storage_error");
+  }
+
+  const authError = validateManagementApiKey(request);
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -367,15 +389,22 @@ async function handleSaveRequest(request) {
     return errorResponse("KV storage not configured", 500, "storage_error");
   }
 
+  const authError = validateManagementApiKey(request);
+  if (authError) {
+    return authError;
+  }
+
   try {
     // Parse FormData
     const formData = await request.formData();
     const text = formData.get("text");
     const voice = formData.get("voice");
+    const audioFormat = formData.get("audioFormat") || "mp3";
     const speed = parseFloat(formData.get("speed"));
     const pitch = parseFloat(formData.get("pitch"));
     const cleaningOptions = JSON.parse(formData.get("cleaningOptions") || "{}");
     const audioFile = formData.get("audioFile");
+    const formatInfo = OUTPUT_FORMAT_MAP[audioFormat] || OUTPUT_FORMAT_MAP.mp3;
 
     if (!text || !audioFile) {
       return errorResponse("Missing required fields", 400, "invalid_request");
@@ -396,6 +425,8 @@ async function handleSaveRequest(request) {
       voice,
       speed,
       pitch,
+      audioFormat: formatInfo.ext,
+      audioMime: formatInfo.mime,
       cleaningOptions,
       timestamp,
       summary: text.substring(0, 100) + (text.length > 100 ? "..." : ""),
@@ -442,21 +473,12 @@ async function handleHistoryApiRequest(request) {
     return errorResponse("KV storage not configured", 500, "storage_error");
   }
 
-  // Check API key for history access
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return errorResponse(
-      "API key required to access history",
-      401,
-      "unauthorized"
-    );
-  }
-  // Validate the actual key value
-  if (globalThis.API_KEY) {
-    const providedKey = authHeader.slice(7);
-    if (providedKey !== globalThis.API_KEY) {
-      return errorResponse("Invalid API key", 403, "invalid_api_key");
-    }
+  const authError = validateManagementApiKey(
+    request,
+    "API key required to access history"
+  );
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -488,10 +510,9 @@ async function handleSetPasswordRequest(request) {
     return errorResponse("KV storage not configured", 500, "storage_error");
   }
 
-  // Check API key
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return errorResponse("API key required", 401, "unauthorized");
+  const authError = validateManagementApiKey(request);
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -542,10 +563,9 @@ async function handleDeleteRequest(request) {
     return errorResponse("KV storage not configured", 500, "storage_error");
   }
 
-  // Check API key
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return errorResponse("API key required", 401, "unauthorized");
+  const authError = validateManagementApiKey(request);
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -555,9 +575,15 @@ async function handleDeleteRequest(request) {
       return errorResponse("Missing item ID", 400, "invalid_request");
     }
 
+    const metadataStr = await globalThis.TTS_HISTORY.get(`meta_${id}`);
+    const metadata = metadataStr ? JSON.parse(metadataStr) : null;
+
     // Delete audio and metadata
     await globalThis.TTS_HISTORY.delete(`audio_${id}`);
     await globalThis.TTS_HISTORY.delete(`meta_${id}`);
+    if (metadata?.shareUUID) {
+      await globalThis.TTS_HISTORY.delete(`share_auth_${metadata.shareUUID}`);
+    }
 
     // Update history index
     const historyData = await globalThis.TTS_HISTORY.get("history_index");
@@ -588,17 +614,9 @@ async function handleHistoryClearRequest(request) {
     return errorResponse("KV storage not configured", 500, "storage_error");
   }
 
-  // Verify API Key
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return errorResponse("API key required", 401, "unauthorized");
-  }
-  
-  if (globalThis.API_KEY) {
-    const providedKey = authHeader.slice(7);
-    if (providedKey !== globalThis.API_KEY) {
-      return errorResponse("Invalid API key", 403, "invalid_api_key");
-    }
+  const authError = validateManagementApiKey(request);
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -612,10 +630,17 @@ async function handleHistoryClearRequest(request) {
     const history = JSON.parse(historyData);
     let deletedCount = 0;
 
-    // Delete all linked audio files from KV
+    // Delete every stored object so the KV usage actually drops.
     for (const item of history) {
-      if (item.type !== 'realtime' && item.fileKey) {
-        await globalThis.TTS_HISTORY.delete(item.fileKey);
+      const metadataStr = await globalThis.TTS_HISTORY.get(`meta_${item.id}`);
+      const metadata = metadataStr ? JSON.parse(metadataStr) : null;
+
+      await globalThis.TTS_HISTORY.delete(`meta_${item.id}`);
+      if (item.type !== "realtime") {
+        await globalThis.TTS_HISTORY.delete(`audio_${item.id}`);
+      }
+      if (metadata?.shareUUID) {
+        await globalThis.TTS_HISTORY.delete(`share_auth_${metadata.shareUUID}`);
       }
       deletedCount++;
     }
@@ -810,6 +835,8 @@ async function handleAudioRequest(request) {
   }
 
   try {
+    const metadataStr = await globalThis.TTS_HISTORY.get(`meta_${id}`);
+    const metadata = metadataStr ? JSON.parse(metadataStr) : null;
     const audioData = await globalThis.TTS_HISTORY.get(
       `audio_${id}`,
       "arrayBuffer"
@@ -820,7 +847,7 @@ async function handleAudioRequest(request) {
 
     return new Response(audioData, {
       headers: {
-        "Content-Type": "audio/mpeg",
+        "Content-Type": metadata?.audioMime || "audio/mpeg",
         "Content-Length": audioData.byteLength.toString(),
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=31536000",
@@ -937,11 +964,22 @@ async function handleSpeechRequest(request) {
       role,
       styleDegree,
       outputFormat,
+      contentType,
       request
     );
   } else {
     // Try Cloudflare Cache API for non-streaming requests
-    const cacheKey = await buildCacheKey(request, cleanedInput, finalVoice, rate, numPitch, style, role, styleDegree);
+    const cacheKey = await buildCacheKey(
+      request,
+      cleanedInput,
+      finalVoice,
+      rate,
+      numPitch,
+      style,
+      role,
+      styleDegree,
+      outputFormat
+    );
     const cache = caches.default;
     const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) {
@@ -957,6 +995,7 @@ async function handleSpeechRequest(request) {
       role,
       styleDegree,
       outputFormat,
+      contentType,
       request
     );
 
@@ -1008,6 +1047,7 @@ async function getVoice(
   role,
   styleDegree,
   outputFormat,
+  contentType,
   request
 ) {
   const maxChunkSize = 2000;
@@ -1030,9 +1070,9 @@ async function getVoice(
     );
     audioChunks.push(audioChunk);
   }
-  const concatenatedAudio = new Blob(audioChunks, { type: "audio/mpeg" });
+  const concatenatedAudio = new Blob(audioChunks, { type: contentType });
   return new Response(concatenatedAudio, {
-    headers: { "Content-Type": "audio/mpeg", ...makeCORSHeaders() },
+    headers: { "Content-Type": contentType, ...makeCORSHeaders() },
   });
 }
 
@@ -1045,6 +1085,7 @@ async function getVoiceStream(
   role,
   styleDegree,
   outputFormat,
+  contentType,
   request
 ) {
   const maxChunkSize = 2000;
@@ -1081,7 +1122,7 @@ async function getVoiceStream(
   })();
 
   return new Response(readable, {
-    headers: { "Content-Type": "audio/mpeg", ...makeCORSHeaders() },
+    headers: { "Content-Type": contentType, ...makeCORSHeaders() },
   });
 }
 
@@ -1362,8 +1403,8 @@ function renderMarkdown(text) {
 // Utility Functions
 // =================================================================================
 
-async function buildCacheKey(request, text, voice, rate, pitch, style, role, styleDegree) {
-  const cachePayload = `${text}|${voice}|${rate}|${pitch}|${style}|${role}|${styleDegree}`;
+async function buildCacheKey(request, text, voice, rate, pitch, style, role, styleDegree, outputFormat) {
+  const cachePayload = `${text}|${voice}|${rate}|${pitch}|${style}|${role}|${styleDegree}|${outputFormat}`;
   const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cachePayload));
   const hashHex = Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, "0")).join("");
   const url = new URL(request.url);
@@ -1482,7 +1523,7 @@ function getPasswordPageHTML(id) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>访问受限 - 需要密码</title>
+  <title>${SITE_NAME} - 访问受限</title>
   <style>
     :root { --primary-color: #007bff; --light-gray: #f8f9fa; --gray: #6c757d; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--light-gray); color: #343a40; line-height: 1.8; margin: 0; padding: 1rem; }
@@ -1543,7 +1584,7 @@ function getPlayPageHTML(config) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TTS 实时播放 - ${config.text.substring(0, 50)}${
+  <title>${SITE_NAME} 实时播放 - ${config.text.substring(0, 50)}${
     config.text.length > 50 ? "..." : ""
   }</title>
   <meta name="description" content="${config.text.substring(0, 100)}">
@@ -1577,7 +1618,7 @@ function getPlayPageHTML(config) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="title">🎵 TTS 实时播放</div>
+      <div class="title">🎵 ${SITE_NAME} 实时播放</div>
       <div class="voice-info">
         音色：${config.voice} | 语速：${config.speed}x | 音调：${config.pitch}
       </div>
@@ -1596,7 +1637,7 @@ function getPlayPageHTML(config) {
     </div>
     
     <div class="footer">
-      <a href="/" style="color: var(--gray); text-decoration: none;">← 返回 TTS 服务</a>
+      <a href="/" style="color: var(--gray); text-decoration: none;">← 返回 ${SITE_NAME}</a>
     </div>
   </div>
 
@@ -1690,7 +1731,7 @@ function getRealtimeSharePageHTML(metadata, id) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TTS 实时播放 - ${metadata.summary}</title>
+  <title>${SITE_NAME} 实时播放 - ${metadata.summary}</title>
   <meta name="description" content="${metadata.summary}">
   <style>
     :root { --primary-color: #007bff; --success-color: #28a745; --light-gray: #f8f9fa; --gray: #6c757d; --border-color: #dee2e6; }
@@ -1723,7 +1764,7 @@ function getRealtimeSharePageHTML(metadata, id) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="title">🎵 TTS 实时播放分享</div>
+      <div class="title">🎵 ${SITE_NAME} 实时播放分享</div>
       <div class="meta">
         ${formatDate(metadata.timestamp)} • ${metadata.voice} • 实时生成
       </div>
@@ -1746,7 +1787,7 @@ function getRealtimeSharePageHTML(metadata, id) {
         <button class="share-btn share-copy" onclick="copyLink()" style="padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 0.9rem; background-color: var(--primary-color); color: white;">📋 复制链接</button>
       </div>
       <div style="margin-bottom: 1rem;">
-        <a href="/" style="color: var(--gray); text-decoration: none;">← 返回 TTS 服务</a>
+        <a href="/" style="color: var(--gray); text-decoration: none;">← 返回 ${SITE_NAME}</a>
       </div>
       <div style="padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--gray);">
         <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
@@ -1925,7 +1966,7 @@ function getSharePageHTML(metadata, id) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TTS 分享 - ${metadata.summary}</title>
+  <title>${SITE_NAME} 分享 - ${metadata.summary}</title>
   <meta name="description" content="${metadata.summary}">
   <style>
     :root { --primary-color: #007bff; --success-color: #28a745; --light-gray: #f8f9fa; --gray: #6c757d; --border-color: #dee2e6; }
@@ -1998,7 +2039,7 @@ function getSharePageHTML(metadata, id) {
         <button class="share-btn share-copy" onclick="copyLink()">📋 复制链接</button>
       </div>
       <div style="margin-top: 1rem;">
-        <a href="/" class="back-link">← 返回 TTS 服务</a>
+        <a href="/" class="back-link">← 返回 ${SITE_NAME}</a>
       </div>
       <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.85rem; color: var(--gray);">
         <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
@@ -2105,7 +2146,7 @@ function getHistoryPageHTML() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TTS 历史记录</title>
+  <title>${SITE_NAME} 历史记录</title>
   <style>
     :root { --primary-color: #007bff; --success-color: #28a745; --error-color: #dc3545; --light-gray: #f8f9fa; --gray: #6c757d; --border-color: #dee2e6; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--light-gray); color: #343a40; line-height: 1.6; margin: 0; padding: 2rem; }
@@ -2151,7 +2192,7 @@ function getHistoryPageHTML() {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📚 TTS 历史记录</h1>
+      <h1>📚 ${SITE_NAME} 历史记录</h1>
       <a href="/" class="back-btn">← 返回主页</a>
     </div>
     
@@ -2477,7 +2518,7 @@ function getWebUIHTML() {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EdgeTTS WebUI Enhanced</title>
+    <title>${SITE_NAME}</title>
     <style>
       :root { --primary-color: #007bff; --success-color: #28a745; --error-color: #dc3545; --light-gray: #f8f9fa; --gray: #6c757d; --border-color: #dee2e6; }
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--light-gray); color: #343a40; line-height: 1.6; display: flex; justify-content: center; padding: 2rem; margin: 0; }
@@ -2547,7 +2588,7 @@ function getWebUIHTML() {
   </head>
   <body>
     <main class="container">
-      <h1>EdgeTTS WebUI Enhanced (v1.0)</h1>
+      <h1>${SITE_NAME} (v1.0)</h1>
       <details id="api-config" open>
         <summary>API 配置</summary>
         <div class="form-group" style="margin-top: 1rem">
@@ -2993,6 +3034,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
         const generateSpeech = async (isStream = false, retryCount = 0) => {
           const apiKey = elements.apiKey.value.trim();
           const text = elements.inputText.value.trim();
+          const audioFormat = elements.audioFormat.value;
 
           if (!apiKey) {
             updateStatus("请先在 API 配置中输入 API Key", "error");
@@ -3007,6 +3049,10 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
           // 【核心优化】移动端流式降级为标准模式
           if (isStream && isMobile) {
             console.log("Mobile device detected. Downgrading stream to standard request for compatibility.");
+            isStream = false;
+          }
+          if (isStream && audioFormat !== "mp3") {
+            console.log(`Streaming is limited to mp3 in the current WebUI. Downgrading ${audioFormat} to standard request.`);
             isStream = false;
           }
 
@@ -3031,7 +3077,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
               role: voiceConfig.role,
               styleDegree: voiceConfig.styleDegree,
               stream: isStream,
-              response_format: elements.audioFormat.value,
+              response_format: audioFormat,
               ssml: elements.ssmlEditor.value.trim(),
               cleaning_options: {
                 remove_markdown: elements.removeMarkdown.checked, remove_emoji: elements.removeEmoji.checked,
@@ -3145,7 +3191,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
         };
 
         // Save as realtime play function
-        const saveAsRealtimePlay = async (requestBody) => {
+        const saveAsRealtimePlay = async (requestBody, apiKey) => {
           try {
             updateStatus("正在保存为实时播放...", "info", true);
             
@@ -3166,7 +3212,10 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             
             const response = await fetch('/api/save-realtime', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
               body: JSON.stringify(realtimeData)
             });
             
@@ -3218,7 +3267,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
         };
 
         // Save to history function
-        const saveToHistory = async (requestBody, audioBlob) => {
+        const saveToHistory = async (requestBody, audioBlob, apiKey) => {
           try {
             updateStatus("正在保存到历史记录...", "info", true);
             
@@ -3226,13 +3275,17 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             const formData = new FormData();
             formData.append('text', requestBody.input);
             formData.append('voice', requestBody.voice); // 使用 voice 而不是 model
+            formData.append('audioFormat', requestBody.response_format || 'mp3');
             formData.append('speed', requestBody.speed.toString());
             formData.append('pitch', requestBody.pitch.toString());
             formData.append('cleaningOptions', JSON.stringify(requestBody.cleaning_options));
-            formData.append('audioFile', audioBlob, 'audio.mp3');
+            formData.append('audioFile', audioBlob, `audio.${requestBody.response_format || 'mp3'}`);
             
             const response = await fetch('/api/save', {
               method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`
+              },
               body: formData  // No Content-Type header needed for FormData
             });
             
@@ -3327,6 +3380,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             role: voiceConfig.role,
             styleDegree: voiceConfig.styleDegree,
             stream: false, // 直接保存使用标准模式
+            response_format: elements.audioFormat.value,
             cleaning_options: {
               remove_markdown: elements.removeMarkdown.checked,
               remove_emoji: elements.removeEmoji.checked,
@@ -3350,7 +3404,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
               
               if (response.ok) {
                 const blob = await response.blob();
-                await saveToHistory(requestBody, blob);
+                await saveToHistory(requestBody, blob, apiKey);
               } else {
                 throw new Error('生成音频失败');
               }
@@ -3358,7 +3412,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             
             if (elements.saveAsRealtime.checked) {
               // 直接保存为实时播放
-              await saveAsRealtimePlay(requestBody);
+              await saveAsRealtimePlay(requestBody, apiKey);
             }
             
           } catch (error) {

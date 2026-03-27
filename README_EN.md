@@ -1,14 +1,18 @@
-# EdgeTTS WebUI Enhanced (v1.0)
+# Ziyin Yizhan (字音驿站) (v1.0)
 
 A high-performance Text-to-Speech (TTS) proxy service deployed on Cloudflare Pages. It cleverly wraps Microsoft Edge's powerful and natural speech synthesis service into an OpenAI API-compatible interface. This allows developers to seamlessly integrate various existing applications with this free, high-quality TTS service.
 
 Project Features: **Single-file deployment** with complete WebUI testing interface and TTS service.
+
+Default WebUI / site title: `字音驿站`
 
 ## 📦 Version Release
 
 ### v1.0
 
 - 🔒 **Security Fix**: Fixed a vulnerability in `/api/history` endpoint where only the `Authorization` header format was checked (not the actual key value).
+- 🔐 **Management API Fix**: Saving history, saving realtime shares, setting passwords, deleting items, and clearing history now consistently validate the bearer API key.
+- 🎧 **Format Handling Fix**: Cached responses and saved history now preserve the requested audio format metadata; non-MP3 streaming in the WebUI now falls back to standard playback for compatibility.
 - 🗄️ History storage via KV
 - 🔗 Sharing functionality with password protection
 - 🔐 API key verification
