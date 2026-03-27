@@ -3052,7 +3052,7 @@ curl --location '\${baseUrl}/v1/audio/speech' \\\\
             isStream = false;
           }
           if (isStream && audioFormat !== "mp3") {
-            console.log(`Streaming is limited to mp3 in the current WebUI. Downgrading ${audioFormat} to standard request.`);
+            console.log("Streaming is limited to mp3 in the current WebUI. Downgrading " + audioFormat + " to standard request.");
             isStream = false;
           }
 
